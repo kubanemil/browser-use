@@ -132,12 +132,13 @@ class Browser:
 	def __init__(
 		self,
 		config: BrowserConfig | None = None,
+		user_data_dir: str | None = None,
 	):
 		logger.debug('🌎  Initializing new browser')
 		self.config = config or BrowserConfig()
 		self.playwright: Playwright | None = None
 		self.playwright_browser: PlaywrightBrowser | None = None
-
+		self.user_data_dir = user_data_dir
 	async def new_context(self, config: BrowserContextConfig | None = None) -> BrowserContext:
 		"""Create a browser context"""
 		browser_config = self.config.model_dump() if self.config else {}
@@ -314,14 +315,24 @@ class Browser:
 				}
 			],
 		}
-
-		browser = await browser_class.launch(
-			headless=self.config.headless,
-			args=args[self.config.browser_class],
-			proxy=self.config.proxy.model_dump() if self.config.proxy else None,
-			handle_sigterm=False,
-			handle_sigint=False,
-		)
+		
+		if not self.user_data_dir:
+			browser = await browser_class.launch(
+				headless=self.config.headless,
+				args=args[self.config.browser_class],
+				proxy=self.config.proxy.model_dump() if self.config.proxy else None,
+				handle_sigterm=False,
+				handle_sigint=False,
+			)
+		else:
+			browser = await browser_class.launch_persistent_context(
+				user_data_dir=self.user_data_dir,
+				headless=self.config.headless,
+				args=args[self.config.browser_class],
+				proxy=self.config.proxy.model_dump() if self.config.proxy else None,
+				handle_sigterm=False,
+				handle_sigint=False,
+			)
 		return browser
 
 	async def _setup_browser(self, playwright: Playwright) -> PlaywrightBrowser:
